@@ -9,7 +9,9 @@
     <script src="https://cdn.tailwindcss.com"></script>
     
     <!-- Leaflet CSS -->
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" 
+          integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" 
+          crossorigin=""/>
     
     <style>
         body {
@@ -45,6 +47,7 @@
             padding: 40px;
             border-radius: 16px;
             box-shadow: 0 20px 60px rgba(0,0,0,0.1);
+            max-width: 500px;
         }
 
         .spinner {
@@ -66,7 +69,6 @@
             font-family: inherit;
         }
 
-        /* Scrollbar personnalisée */
         ::-webkit-scrollbar {
             width: 8px;
             height: 8px;
@@ -89,6 +91,15 @@
             color: #DC2626;
             font-weight: bold;
             margin-top: 10px;
+            padding: 10px;
+            background: #FEE2E2;
+            border-radius: 8px;
+        }
+
+        .loading-step {
+            font-size: 14px;
+            color: #6B7280;
+            margin-top: 10px;
         }
     </style>
 </head>
@@ -98,14 +109,13 @@
         <div id="loading-content">
             <div class="spinner"></div>
             <h2 style="color: #1F2937; font-size: 20px; margin: 10px 0;">Chargement du Dashboard</h2>
-            <p id="loading-status" style="color: #6B7280; font-size: 14px;">Initialisation...</p>
+            <p id="loading-status" class="loading-step">Initialisation...</p>
             <p id="error-message" style="display: none;"></p>
         </div>
     </div>
 
     <div id="root"></div>
 
-    <!-- Charger les bibliothèques dans l'ordre -->
     <script>
         let scriptsLoaded = 0;
         const totalScripts = 6;
@@ -119,25 +129,30 @@
 
         function showError(error) {
             console.error('ERREUR:', error);
-            errorMessage.textContent = 'Erreur: ' + error;
+            errorMessage.textContent = '⚠️ ' + error;
             errorMessage.style.display = 'block';
             loadingStatus.textContent = 'Échec du chargement';
         }
 
-        function loadScript(src, name) {
+        function loadScript(src, name, integrity = null) {
             return new Promise((resolve, reject) => {
                 updateLoadingStatus(`Chargement de ${name}...`);
                 const script = document.createElement('script');
                 script.src = src;
                 script.crossOrigin = 'anonymous';
+                if (integrity) {
+                    script.integrity = integrity;
+                }
                 script.onload = () => {
                     scriptsLoaded++;
                     updateLoadingStatus(`${name} chargé (${scriptsLoaded}/${totalScripts})`);
+                    console.log(`✅ ${name} loaded successfully`);
                     resolve();
                 };
                 script.onerror = () => {
-                    showError(`Impossible de charger ${name}`);
-                    reject(new Error(`Failed to load ${name}`));
+                    const errorMsg = `Impossible de charger ${name} depuis ${src}`;
+                    showError(errorMsg);
+                    reject(new Error(errorMsg));
                 };
                 document.head.appendChild(script);
             });
@@ -145,13 +160,43 @@
 
         async function loadAllScripts() {
             try {
-                // Charger les bibliothèques essentielles
-                await loadScript('https://unpkg.com/react@18/umd/react.production.min.js', 'React');
-                await loadScript('https://unpkg.com/react-dom@18/umd/react-dom.production.min.js', 'ReactDOM');
-                await loadScript('https://unpkg.com/@babel/standalone/babel.min.js', 'Babel');
-                await loadScript('https://unpkg.com/recharts@2.10.3/dist/Recharts.js', 'Recharts');
-                await loadScript('https://unpkg.com/leaflet@1.9.4/dist/leaflet.js', 'Leaflet');
-                await loadScript('https://unpkg.com/react-leaflet@4.2.1/dist/react-leaflet.min.js', 'React Leaflet');
+                // React 18
+                await loadScript(
+                    'https://unpkg.com/react@18.2.0/umd/react.production.min.js',
+                    'React'
+                );
+                
+                // ReactDOM 18
+                await loadScript(
+                    'https://unpkg.com/react-dom@18.2.0/umd/react-dom.production.min.js',
+                    'ReactDOM'
+                );
+                
+                // Babel Standalone
+                await loadScript(
+                    'https://unpkg.com/@babel/standalone@7.23.5/babel.min.js',
+                    'Babel'
+                );
+                
+                // Leaflet
+                await loadScript(
+                    'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js',
+                    'Leaflet',
+                    'sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo='
+                );
+                
+                // Recharts - Version stable 2.5.0
+                updateLoadingStatus('Chargement de Recharts...');
+                await loadScript(
+                    'https://cdn.jsdelivr.net/npm/recharts@2.5.0/dist/Recharts.js',
+                    'Recharts'
+                );
+                
+                // React Leaflet
+                await loadScript(
+                    'https://unpkg.com/react-leaflet@4.2.1/dist/react-leaflet.min.js',
+                    'React Leaflet'
+                );
                 
                 updateLoadingStatus('Chargement de l\'application...');
                 
@@ -161,7 +206,6 @@
                 appScript.src = './burkina-dashboard.jsx';
                 appScript.onload = () => {
                     updateLoadingStatus('Démarrage de l\'application...');
-                    // Laisser un peu de temps pour Babel de compiler
                     setTimeout(initializeApp, 500);
                 };
                 appScript.onerror = () => {
@@ -170,7 +214,7 @@
                 document.body.appendChild(appScript);
                 
             } catch (error) {
-                showError(error.message);
+                showError(error.message + ' - Vérifiez votre connexion internet.');
             }
         }
 
@@ -201,7 +245,7 @@
 
         // Capturer les erreurs globales
         window.addEventListener('error', function(e) {
-            console.error('Erreur globale:', e.message);
+            console.error('Erreur globale:', e.message, e.filename, e.lineno);
         });
 
         // Démarrer le chargement
