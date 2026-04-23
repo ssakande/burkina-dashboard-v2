@@ -1,0 +1,34 @@
+{
+  "name": "burkina-faso-dashboard",
+  "version": "1.0.0",
+  "description": "Dashboard interactif pour l'analyse de la situation humanitaire et éducative au Burkina Faso",
+  "main": "index.html",
+  "scripts": {
+    "start": "python3 -m http.server 8000",
+    "build": "echo 'No build step required - static files only'",
+    "deploy": "echo 'Ready for deployment to GitHub Pages or Netlify'"
+  },
+  "keywords": [
+    "burkina-faso",
+    "humanitarian",
+    "education",
+    "dashboard",
+    "geospatial",
+    "react",
+    "leaflet"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "recharts": "^2.10.3",
+    "leaflet": "^1.9.4",
+    "react-leaflet": "^4.2.1"
+  },
+  "devDependencies": {},
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/votre-username/burkina-faso-dashboard"
+  }
+}

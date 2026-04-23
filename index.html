@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard Humanitaire - Burkina Faso</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+                'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+                sans-serif;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+        
+        #root {
+            min-height: 100vh;
+        }
+
+        #loading-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, #EFF6FF 0%, #E0E7FF 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+        }
+
+        #loading-content {
+            text-align: center;
+            background: white;
+            padding: 40px;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.1);
+        }
+
+        .spinner {
+            border: 4px solid #E0E7FF;
+            border-top: 4px solid #6366F1;
+            border-radius: 50%;
+            width: 60px;
+            height: 60px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .leaflet-container {
+            font-family: inherit;
+        }
+
+        /* Scrollbar personnalisée */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #888;
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #555;
+        }
+
+        #error-message {
+            color: #DC2626;
+            font-weight: bold;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <!-- Écran de chargement initial -->
+    <div id="loading-screen">
+        <div id="loading-content">
+            <div class="spinner"></div>
+            <h2 style="color: #1F2937; font-size: 20px; margin: 10px 0;">Chargement du Dashboard</h2>
+            <p id="loading-status" style="color: #6B7280; font-size: 14px;">Initialisation...</p>
+            <p id="error-message" style="display: none;"></p>
+        </div>
+    </div>
+
+    <div id="root"></div>
+
+    <!-- Charger les bibliothèques dans l'ordre -->
+    <script>
+        let scriptsLoaded = 0;
+        const totalScripts = 6;
+        const loadingStatus = document.getElementById('loading-status');
+        const errorMessage = document.getElementById('error-message');
+
+        function updateLoadingStatus(message) {
+            console.log(message);
+            loadingStatus.textContent = message;
+        }
+
+        function showError(error) {
+            console.error('ERREUR:', error);
+            errorMessage.textContent = 'Erreur: ' + error;
+            errorMessage.style.display = 'block';
+            loadingStatus.textContent = 'Échec du chargement';
+        }
+
+        function loadScript(src, name) {
+            return new Promise((resolve, reject) => {
+                updateLoadingStatus(`Chargement de ${name}...`);
+                const script = document.createElement('script');
+                script.src = src;
+                script.crossOrigin = 'anonymous';
+                script.onload = () => {
+                    scriptsLoaded++;
+                    updateLoadingStatus(`${name} chargé (${scriptsLoaded}/${totalScripts})`);
+                    resolve();
+                };
+                script.onerror = () => {
+                    showError(`Impossible de charger ${name}`);
+                    reject(new Error(`Failed to load ${name}`));
+                };
+                document.head.appendChild(script);
+            });
+        }
+
+        async function loadAllScripts() {
+            try {
+                // Charger les bibliothèques essentielles
+                await loadScript('https://unpkg.com/react@18/umd/react.production.min.js', 'React');
+                await loadScript('https://unpkg.com/react-dom@18/umd/react-dom.production.min.js', 'ReactDOM');
+                await loadScript('https://unpkg.com/@babel/standalone/babel.min.js', 'Babel');
+                await loadScript('https://unpkg.com/recharts@2.10.3/dist/Recharts.js', 'Recharts');
+                await loadScript('https://unpkg.com/leaflet@1.9.4/dist/leaflet.js', 'Leaflet');
+                await loadScript('https://unpkg.com/react-leaflet@4.2.1/dist/react-leaflet.min.js', 'React Leaflet');
+                
+                updateLoadingStatus('Chargement de l\'application...');
+                
+                // Charger le code de l'application
+                const appScript = document.createElement('script');
+                appScript.type = 'text/babel';
+                appScript.src = './burkina-dashboard.jsx';
+                appScript.onload = () => {
+                    updateLoadingStatus('Démarrage de l\'application...');
+                    // Laisser un peu de temps pour Babel de compiler
+                    setTimeout(initializeApp, 500);
+                };
+                appScript.onerror = () => {
+                    showError('Impossible de charger burkina-dashboard.jsx. Vérifiez que le fichier est présent.');
+                };
+                document.body.appendChild(appScript);
+                
+            } catch (error) {
+                showError(error.message);
+            }
+        }
+
+        function initializeApp() {
+            try {
+                const { StrictMode } = React;
+                const { createRoot } = ReactDOM;
+
+                if (typeof BurkinaDashboard === 'undefined') {
+                    throw new Error('BurkinaDashboard component not found');
+                }
+
+                const root = createRoot(document.getElementById('root'));
+                root.render(
+                    React.createElement(StrictMode, null,
+                        React.createElement(BurkinaDashboard)
+                    )
+                );
+
+                // Masquer l'écran de chargement
+                setTimeout(() => {
+                    document.getElementById('loading-screen').style.display = 'none';
+                }, 500);
+            } catch (error) {
+                showError('Erreur lors de l\'initialisation: ' + error.message);
+            }
+        }
+
+        // Capturer les erreurs globales
+        window.addEventListener('error', function(e) {
+            console.error('Erreur globale:', e.message);
+        });
+
+        // Démarrer le chargement
+        loadAllScripts();
+    </script>
+</body>
+</html>

@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Diagnostic - Dashboard Burkina Faso</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 20px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .status-box {
+            background: white;
+            padding: 20px;
+            margin: 10px 0;
+            border-radius: 8px;
+            border-left: 4px solid #ccc;
+        }
+        .status-box.success {
+            border-color: #10b981;
+        }
+        .status-box.error {
+            border-color: #ef4444;
+        }
+        .status-box.loading {
+            border-color: #f59e0b;
+        }
+        h1 {
+            color: #333;
+        }
+        .log {
+            background: #1f2937;
+            color: #10b981;
+            padding: 15px;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 12px;
+            max-height: 400px;
+            overflow-y: auto;
+            margin: 10px 0;
+        }
+        .error-msg {
+            color: #ef4444;
+        }
+        .success-msg {
+            color: #10b981;
+        }
+        .warning-msg {
+            color: #f59e0b;
+        }
+        button {
+            background: #6366f1;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 5px;
+        }
+        button:hover {
+            background: #4f46e5;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔍 Diagnostic du Dashboard Burkina Faso</h1>
+    
+    <div class="status-box loading" id="status-main">
+        <h3>⏳ Vérification en cours...</h3>
+        <p>Patientez pendant que nous vérifions votre installation.</p>
+    </div>
+
+    <div class="log" id="console-log"></div>
+
+    <div id="actions" style="display:none; margin: 20px 0;">
+        <h3>Actions disponibles :</h3>
+        <button onclick="window.location.href='index.html'">Ouvrir le Dashboard</button>
+        <button onclick="location.reload()">Relancer le diagnostic</button>
+    </div>
+
+    <script>
+        const log = document.getElementById('console-log');
+        const statusBox = document.getElementById('status-main');
+        const actionsDiv = document.getElementById('actions');
+        
+        let errors = [];
+        let warnings = [];
+        let successes = [];
+
+        function logMessage(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            const prefix = type === 'error' ? '❌' : type === 'success' ? '✅' : type === 'warning' ? '⚠️' : 'ℹ️';
+            const className = type === 'error' ? 'error-msg' : type === 'success' ? 'success-msg' : type === 'warning' ? 'warning-msg' : '';
+            
+            log.innerHTML += `<div class="${className}">[${timestamp}] ${prefix} ${message}</div>`;
+            log.scrollTop = log.scrollHeight;
+
+            if (type === 'error') errors.push(message);
+            if (type === 'warning') warnings.push(message);
+            if (type === 'success') successes.push(message);
+        }
+
+        function updateStatus() {
+            if (errors.length > 0) {
+                statusBox.className = 'status-box error';
+                statusBox.innerHTML = `
+                    <h3>❌ Problèmes détectés (${errors.length})</h3>
+                    <p>Des erreurs empêchent le dashboard de fonctionner. Consultez les détails ci-dessous.</p>
+                `;
+            } else if (warnings.length > 0) {
+                statusBox.className = 'status-box success';
+                statusBox.innerHTML = `
+                    <h3>⚠️ Installation fonctionnelle avec avertissements (${warnings.length})</h3>
+                    <p>Le dashboard devrait fonctionner, mais certains fichiers sont lourds.</p>
+                `;
+                actionsDiv.style.display = 'block';
+            } else {
+                statusBox.className = 'status-box success';
+                statusBox.innerHTML = `
+                    <h3>✅ Tout est OK ! (${successes.length} vérifications réussies)</h3>
+                    <p>Votre dashboard est prêt à être utilisé.</p>
+                `;
+                actionsDiv.style.display = 'block';
+            }
+        }
+
+        async function checkFile(filename, maxSize = null) {
+            try {
+                logMessage(`Vérification de ${filename}...`, 'info');
+                const response = await fetch(filename);
+                
+                if (!response.ok) {
+                    logMessage(`Fichier ${filename} introuvable (${response.status})`, 'error');
+                    return false;
+                }
+
+                const size = response.headers.get('content-length');
+                const sizeInMB = size ? (size / 1024 / 1024).toFixed(2) : 'inconnue';
+                
+                if (maxSize && size && size > maxSize) {
+                    logMessage(`${filename} trouvé mais très volumineux (${sizeInMB} MB)`, 'warning');
+                } else {
+                    logMessage(`${filename} trouvé (${sizeInMB} MB)`, 'success');
+                }
+
+                return true;
+            } catch (error) {
+                logMessage(`Erreur lors de la vérification de ${filename}: ${error.message}`, 'error');
+                return false;
+            }
+        }
+
+        async function checkJSON(filename) {
+            try {
+                logMessage(`Chargement et validation de ${filename}...`, 'info');
+                const response = await fetch(filename);
+                
+                if (!response.ok) {
+                    logMessage(`${filename} introuvable`, 'error');
+                    return false;
+                }
+
+                const data = await response.json();
+                
+                if (filename.includes('data.json')) {
+                    logMessage(`${filename} contient ${data.length} enregistrements`, 'success');
+                } else if (filename.includes('.json')) {
+                    const features = data.features ? data.features.length : 0;
+                    logMessage(`${filename} contient ${features} features GeoJSON`, 'success');
+                }
+
+                return true;
+            } catch (error) {
+                logMessage(`Erreur lors du parsing de ${filename}: ${error.message}`, 'error');
+                return false;
+            }
+        }
+
+        async function checkLibraries() {
+            logMessage('Vérification des bibliothèques externes...', 'info');
+            
+            const libs = [
+                { name: 'React', check: () => typeof React !== 'undefined' },
+                { name: 'ReactDOM', check: () => typeof ReactDOM !== 'undefined' },
+                { name: 'Leaflet', check: () => typeof L !== 'undefined' },
+                { name: 'Recharts', check: () => typeof Recharts !== 'undefined' }
+            ];
+
+            for (const lib of libs) {
+                if (lib.check()) {
+                    logMessage(`Bibliothèque ${lib.name} chargée`, 'success');
+                } else {
+                    logMessage(`Bibliothèque ${lib.name} non chargée`, 'warning');
+                }
+            }
+        }
+
+        async function runDiagnostics() {
+            logMessage('=== Démarrage du diagnostic ===', 'info');
+            logMessage('', 'info');
+
+            // Vérifier les fichiers essentiels
+            logMessage('--- Vérification des fichiers HTML/JS ---', 'info');
+            await checkFile('index.html');
+            await checkFile('burkina-dashboard.jsx');
+            logMessage('', 'info');
+
+            // Vérifier les données JSON
+            logMessage('--- Vérification des données JSON ---', 'info');
+            await checkJSON('burkina-data.json');
+            logMessage('', 'info');
+
+            // Vérifier les GeoJSON (avec avertissement si trop gros)
+            logMessage('--- Vérification des GeoJSON ---', 'info');
+            await checkFile('burkina-regions-simplified.json', 10 * 1024 * 1024); // 10MB
+            await checkFile('burkina-provinces-simplified.json', 15 * 1024 * 1024); // 15MB
+            logMessage('', 'info');
+
+            // Attendre un peu pour que les scripts se chargent
+            setTimeout(() => {
+                checkLibraries();
+                logMessage('', 'info');
+                logMessage('=== Diagnostic terminé ===', 'info');
+                updateStatus();
+            }, 2000);
+        }
+
+        // Capturer les erreurs de la console
+        window.addEventListener('error', function(e) {
+            logMessage(`Erreur JavaScript: ${e.message} (${e.filename}:${e.lineno})`, 'error');
+            updateStatus();
+        });
+
+        // Lancer le diagnostic
+        runDiagnostics();
+    </script>
+
+    <!-- Charger les bibliothèques pour les tester -->
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/recharts@2.10.3/dist/Recharts.js"></script>
+</body>
+</html>
